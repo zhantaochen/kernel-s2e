@@ -9,6 +9,8 @@ from .data_utils import get_neighbors, func_index_tensor, ensure_array, ensure_t
 class NeighborDataset(Dataset):
     def __init__(self, grid, data, neighbor_range, data_mask_threshold=1e-3):
         
+        self.deltas = (grid[tuple(1 for _ in range(grid.ndim - 1)) + (slice(None),)] - 
+                       grid[tuple(0 for _ in range(grid.ndim - 1)) + (slice(None),)]).detach().cpu()
         self.grid = grid
         if data.ndim == grid.ndim-1:
             self.data = data.unsqueeze(-1)

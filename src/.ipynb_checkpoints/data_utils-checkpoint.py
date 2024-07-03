@@ -22,7 +22,7 @@ def ensure_tensor(x):
     else:
         raise ValueError(f"Unsupported type: {type(x)}")
 
-def get_neighbors(index, dim, neighbor_range, deltas=None, return_flat=True, exclude_corner=False):
+def get_neighbors(index, dim, neighbor_range, return_flat=True, exclude_corner=False):
     """    
     Get the indices of all neighbors around a given index or batch of indices.
     Drafted by Claude 3 Sonnet LLM on Mar 11, 2024.
@@ -48,15 +48,7 @@ def get_neighbors(index, dim, neighbor_range, deltas=None, return_flat=True, exc
     offset_combinations = torch.tensor(list(itertools.product(*ranges)))
 
     # Broadcast the flattened input index tensor and add all offset combinations
-    if deltas is None:
-        neighbor_indices = flat_index[:, None, :] + offset_combinations[None, :, :]
-    else:
-        if isinstance(deltas, (list, tuple)):
-            deltas = torch.tensor(deltas)
-        elif isinstance(deltas, float):
-            deltas = torch.tensor([deltas] * dim)
-        assert deltas.shape == (dim,), "The shape of deltas must match the dimension of the indices."
-        neighbor_indices = flat_index[:, None, :] + deltas[None, None, :] * offset_combinations[None, :, :]
+    neighbor_indices = flat_index[:, None, :] + offset_combinations[None, :, :]
     
     if exclude_corner:
         dist_neighbors = offset_combinations.float().norm(dim=-1)

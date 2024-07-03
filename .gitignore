@@ -1,3 +1,4 @@
 input/
 __pycache__/
 *.pyc
+lightning_logs/
