@@ -5,7 +5,7 @@ from scipy.ndimage import binary_erosion
 
 from .data_utils import get_neighbors, func_index_tensor, ensure_array, ensure_tensor
 
-
+#inherits from Dataset and is used to create a dataset where each sample consists of a central point and its neighbors within a specified range
 class NeighborDataset(Dataset):
     def __init__(self, grid, data, neighbor_range, data_mask_threshold=1e-3):
         
@@ -24,10 +24,10 @@ class NeighborDataset(Dataset):
         _interior_idx = np.transpose(np.nonzero(_interior_idx))
         self.interior_idx = ensure_tensor(_interior_idx)
         del _interior_idx
-        
+#Returns the number of interior indices, which represents the number of samples in the dataset
     def __len__(self):
         return self.interior_idx.shape[0]
-
+#Creates a dataset where each sample consists of a center point and its neighbors within a specified range, along with corresponding data values and a mask indicating valid neighbors.
     def __getitem__(self, idx):
         center_idx = self.interior_idx[idx]
         center_pts = func_index_tensor(self.grid, center_idx)

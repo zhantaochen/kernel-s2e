@@ -5,6 +5,7 @@ import itertools
 
 from .siren import SirenNet
 
+#processes some input to produce an output kernel, which can be used in various tasks like convolution or attention mechanisms.
 class KernelNet(nn.Module):
     def __init__(self, 
                  dim, 
@@ -74,7 +75,8 @@ class KernelNet(nn.Module):
         # )
         
         self.get_kernel_mask()
-    
+        
+#generates a mask for valid neighbor positions based on the neighbor range and dimensionality.
     def get_kernel_mask(self, ):
         # Create a list of ranges for each dimension
         ranges = [range(-self.neighbor_range, self.neighbor_range + 1)] * self.dim
@@ -88,7 +90,7 @@ class KernelNet(nn.Module):
         else:
             valid_neighbors = torch.ones(offset_combinations.shape[0], dtype=bool)
         self.register_buffer('valid_neighbors', valid_neighbors)
-        
+
     @property
     def kernel_mask_flat(self, ):
         return self.valid_neighbors
@@ -96,12 +98,14 @@ class KernelNet(nn.Module):
     @property
     def kernel_mask(self, ):
         return self.valid_neighbors.reshape((self.edge_length,) * self.dim)
-    
+
+#processes the input through both sf_net and kernel_net, then multiplies their outputs element-wise
     def forward(self, x):
         # return self.scale_factor * self.kernel_net(x)
         return self.sf_net(x) * self.kernel_net(x)
     
-
+#for training and validation of the data
+#Initializes with a forward model, model configuration, and loss weight
 class L_Kernel(lightning.LightningModule):
     def __init__(self, 
                  forward_model, 
@@ -132,9 +136,11 @@ class L_Kernel(lightning.LightningModule):
         )
         self.forward_model = forward_model
         
+#forwards the input through the 'kernel_net' 
     def forward(self, x):
         return self.kernel_net(x)
-    
+        
+#Computes reconstruction loss and background magnitude loss for a batch of data aka The function in the slide 
     def compute_metrics_on_batch(self, batch):
         kappa = self.forward(
             batch['center_pts'].to(self.dtype).to(self.device))
@@ -152,7 +158,7 @@ class L_Kernel(lightning.LightningModule):
         loss_bkg_mag = self.loss_bkg_mag_weight * s_bkg.pow(2).mean()
         # loss = loss_reconst + loss_bkg_mag
         return loss_reconst, loss_bkg_mag
-    
+#Defines how to perform training and validation steps, logging the relevant losses  
     def training_step(self, batch, batch_idx):
         loss_reconst, loss_bkg_mag = self.compute_metrics_on_batch(batch)
         loss = loss_reconst + loss_bkg_mag
@@ -168,7 +174,7 @@ class L_Kernel(lightning.LightningModule):
         self.log('val_reconst', loss_reconst.item(), prog_bar=True)
         self.log('val_bkg_mag', loss_bkg_mag.item(), prog_bar=True)
         self.log('val_loss', loss.item(), prog_bar=True)
-    
+#Configures the optimizer (Adam) for training
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=5e-4)
         # optimizer = torch.optim.AdamW(

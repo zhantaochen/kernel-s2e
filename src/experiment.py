@@ -2,20 +2,31 @@ import torch
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
-
+#Converts data to a NumPy array.
+#If data is a torch.Tensor, it is detached from the computation graph, moved to the CPU, cloned, and then converted to a NumPy array.
+#If data is a list, it is converted to a NumPy array.
 def convert_to_numpy(data):
     if isinstance(data, torch.Tensor):
         data = data.detach().cpu().clone().numpy()
     elif isinstance(data, list):
         data = np.asarray(data)
     return data
-
+    
+#Converts data to a Torch tensor.
+#If data is a NumPy array, it is copied and converted to a Torch tensor.
+#If data is a list, it is converted to a NumPy array first and then to a Torch tensor.
 def convert_to_torch(data):
     if isinstance(data, np.ndarray):
         data = torch.from_numpy(data.copy())
     elif isinstance(data, list):
         data = torch.from_numpy(np.ndarray(data))
     return data
+
+#The NeutronExperiment class allows you to:
+#Initialize with grids of momentum and energy transfer, and a scattering intensity grid.
+#Prepare experiments by interpolating the scattering intensity on given coordinates.
+#Retrieve measurements by applying a mask or directly on coordinates.
+#Retrieve binary masks indicating significant scattering intensity regions.
 
 class NeutronExperiment:
 
