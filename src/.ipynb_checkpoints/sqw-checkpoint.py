@@ -3,8 +3,7 @@ import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
-#import lightning as L
-import pytorch_lightning as L
+import lightning as L
 
 from .siren import SirenNet
 

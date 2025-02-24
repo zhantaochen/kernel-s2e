@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-import lightning
+#import lightning
+import pytorch_lightning as lightning
 import itertools
 
 from .siren import SirenNet
@@ -26,7 +27,7 @@ class KernelNet(nn.Module):
         else:
             self.output_dim = int((2*neighbor_range+1)**dim - 2**dim)
         
-        # self.register_parameter('scale_factor', nn.Parameter(torch.tensor(scale_factor_initial)))
+        self.register_parameter('scale_factor', nn.Parameter(torch.tensor(scale_factor_initial)))
         
         self.kernel_net = torch.nn.Sequential(
             SirenNet(
@@ -139,22 +140,29 @@ class L_Kernel(lightning.LightningModule):
         kappa = self.forward(
             batch['center_pts'].to(self.dtype).to(self.device))
         neighb_data = self.forward_model.forward_qw(
-            batch['neighb_pts'].to(self.dtype).to(self.device))
+            batch['neighb_pts'].to(self.dtype).to(self.device)) 
         s_sig = torch.einsum(
             'ij, ij -> i', 
             kappa, neighb_data[:,self.kernel_net.kernel_mask_flat]
         ).unsqueeze(-1)
-        # s_pred = s_sig
         s_bkg = self.bkgd_net(batch['center_pts'].to(self.dtype).to(self.device))
+        #s_pred = s_sig
         s_pred = s_sig + s_bkg
         s_target = batch['center_data']
         loss_reconst = torch.nn.functional.mse_loss(s_pred.cpu(), s_target.cpu())
         loss_bkg_mag = self.loss_bkg_mag_weight * s_bkg.pow(2).mean()
+ 
+        #loss_bkg_mag = loss_bkg_mag * 0
         # loss = loss_reconst + loss_bkg_mag
         return loss_reconst, loss_bkg_mag
     
     def training_step(self, batch, batch_idx):
         loss_reconst, loss_bkg_mag = self.compute_metrics_on_batch(batch)
+        # Print the norm of the parameters for debugging
+        # kernel_norm = sum(p.norm().item() for p in self.kernel_net.parameters())
+        # forward_model_norm = sum(p.norm().item() for p in self.forward_model.parameters())
+        # print(f"Batch {batch_idx}: kernel norm: {kernel_norm:.4f}, forward_model norm: {forward_model_norm:.4f}")
+        
         loss = loss_reconst + loss_bkg_mag
         # self.log('kernel_scale_factor', self.kernel_net.scale_factor.item(), prog_bar=True)
         self.log('train_reconst', loss_reconst.item(), prog_bar=True)
