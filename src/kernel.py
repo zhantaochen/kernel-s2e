@@ -106,6 +106,7 @@ class KernelNet(nn.Module):
 class L_Kernel(lightning.LightningModule):
     def __init__(self, 
                  forward_model, 
+                 forward_model_params,
                  model_config={
                      'dim': 4,
                      'neighbor_range': 1,
@@ -114,15 +115,19 @@ class L_Kernel(lightning.LightningModule):
                      'num_layers': 3,
                      'scale_factor_initial': 300.,
                  },
-                 loss_bkg_mag_weight=5e-2
+                 loss_bkg_mag_weight=5e-2,
+                 loss_bkg_TV_weight = 0.0,
                 ):
         super().__init__()
-        self.save_hyperparameters('model_config', 'loss_bkg_mag_weight')
+        self.save_hyperparameters('model_config', 'loss_bkg_mag_weight','loss_bkg_TV_weight','forward_model_params')
         
         self.model_config = model_config
         self.loss_bkg_mag_weight = loss_bkg_mag_weight
-        
+        self.loss_bkg_TV_weight = loss_bkg_TV_weight
+        self.forward_model_params = forward_model_params
+
         self.kernel_net = KernelNet(**model_config)
+
         self.bkgd_net = SirenNet(
                 dim_in = self.kernel_net.dim,
                 dim_hidden = self.kernel_net.hidden_dim,
@@ -131,9 +136,11 @@ class L_Kernel(lightning.LightningModule):
                 w0_initial = 30.,
                 final_activation = torch.nn.ReLU()
         )
+
         self.forward_model = forward_model
-        
+     
     def forward(self, x):
+        
         return self.kernel_net(x)
     
     def compute_metrics_on_batch(self, batch):
@@ -149,9 +156,13 @@ class L_Kernel(lightning.LightningModule):
         #s_pred = s_sig
         s_pred = s_sig + s_bkg
         s_target = batch['center_data']
-        loss_reconst = torch.nn.functional.mse_loss(s_pred.cpu(), s_target.cpu())
-        loss_bkg_mag = self.loss_bkg_mag_weight * s_bkg.pow(2).mean()
- 
+        #loss_reconst = torch.nn.functional.mse_loss(s_pred.cpu(), s_target.cpu())
+        loss_reconst = torch.nn.functional.mse_loss(torch.log1p(s_pred.cpu()), torch.log1p(s_target.cpu())) # try log1p instead of mse
+        loss_bkg_mag = self.loss_bkg_mag_weight * s_bkg.pow(2).mean() 
+
+        if self.loss_bkg_TV_weight > 0:
+            tv_norm = (s_bkg[1:] - s_bkg[:-1]).abs().mean() 
+            loss_bkg_mag += self.loss_bkg_TV_weight * tv_norm
         #loss_bkg_mag = loss_bkg_mag * 0
         # loss = loss_reconst + loss_bkg_mag
         return loss_reconst, loss_bkg_mag
